@@ -1,0 +1,130 @@
+<Window x:Class="GoMonitor.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="GoMonitor Settings"
+        Width="420"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="#161B22"
+        ShowInTaskbar="True"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True">
+    <Window.Resources>
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#8B949E" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+        <Style x:Key="FieldPassword" TargetType="PasswordBox">
+            <Setter Property="Background" Value="#0D1117" />
+            <Setter Property="Foreground" Value="#E6EDF3" />
+            <Setter Property="BorderBrush" Value="#30363D" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="8,6" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style x:Key="FieldText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="#8B949E" />
+            <Setter Property="Margin" Value="0,5,0,0" />
+        </Style>
+        <Style x:Key="SettingsButton" TargetType="Button">
+            <Setter Property="Background" Value="#21262D" />
+            <Setter Property="Foreground" Value="#E6EDF3" />
+            <Setter Property="BorderBrush" Value="#30363D" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#30363D" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#1F242C" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="ComboControl" TargetType="ComboBox">
+            <Setter Property="Background" Value="#0D1117" />
+            <Setter Property="Foreground" Value="#E6EDF3" />
+            <Setter Property="BorderBrush" Value="#30363D" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Width" Value="160" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="SETTINGS"
+                   FontSize="16"
+                   FontWeight="SemiBold"
+                   Foreground="#E6EDF3" />
+
+        <StackPanel Grid.Row="1" Margin="0,14,0,0">
+            <TextBlock Text="API KEY OVERRIDE (OPTIONAL)" Style="{StaticResource FieldLabel}" />
+            <PasswordBox x:Name="ApiKeyBox" Style="{StaticResource FieldPassword}" />
+            <TextBlock x:Name="KeyHint"
+                       Text="Leave blank to use auth.json"
+                       Style="{StaticResource FieldText}" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Margin="0,14,0,0">
+            <TextBlock Text="POLL INTERVAL" Style="{StaticResource FieldLabel}" />
+            <ComboBox x:Name="IntervalBox" Style="{StaticResource ComboControl}">
+                <ComboBoxItem Content="15 seconds" Tag="15" />
+                <ComboBoxItem Content="30 seconds" Tag="30" />
+                <ComboBoxItem Content="60 seconds" Tag="60" />
+                <ComboBoxItem Content="120 seconds" Tag="120" />
+            </ComboBox>
+        </StackPanel>
+
+        <CheckBox x:Name="StartupCheck"
+                  Grid.Row="3"
+                  Content="Start with Windows"
+                  Margin="0,14,0,0"
+                  Foreground="#E6EDF3"
+                  FontSize="12" />
+
+        <StackPanel Grid.Row="4"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Margin="0,18,0,0">
+            <Button Content="Cancel"
+                    Style="{StaticResource SettingsButton}"
+                    Width="88"
+                    Margin="0,0,8,0"
+                    Click="OnCancelClick" />
+            <Button Content="Save"
+                    Style="{StaticResource SettingsButton}"
+                    Width="88"
+                    Click="OnSaveClick" />
+        </StackPanel>
+    </Grid>
+</Window>
