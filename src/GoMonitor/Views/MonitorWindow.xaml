@@ -58,6 +58,8 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <Grid>
@@ -241,8 +243,99 @@
                 </Button>
             </StackPanel>
 
-            <Border x:Name="ErrorPanel"
+            <Border x:Name="ModelHintPanel"
                     Grid.Row="4"
+                    Margin="0,10,0,0"
+                    Background="#142029"
+                    BorderBrush="#1F6FEB"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Padding="10,6"
+                    Visibility="Collapsed">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="ModelHintText"
+                               TextWrapping="Wrap"
+                               FontSize="11"
+                               Foreground="#79C0FF" />
+                    <Button Grid.Column="1"
+                            Margin="8,0,0,0"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource PanelButton}"
+                            Padding="6,2"
+                            Click="OnIgnoreModelHintClick">
+                        <TextBlock Text="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="10" />
+                    </Button>
+                </Grid>
+            </Border>
+
+            <StackPanel x:Name="ProxyPanel" Grid.Row="5" Margin="0,10,0,0">
+                <Border Background="#21262D" Height="1" Margin="0,0,0,8" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse x:Name="ProxyDot"
+                                 Width="8"
+                                 Height="8"
+                                 Fill="#8B949E"
+                                 VerticalAlignment="Center"
+                                 Margin="0,0,8,0" />
+                        <TextBlock Text="PROXY"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Foreground="#E6EDF3"
+                                   VerticalAlignment="Center" />
+                        <TextBlock x:Name="ProxyEndpoint"
+                                   Text="off"
+                                   FontSize="11"
+                                   FontFamily="Consolas"
+                                   Foreground="#8B949E"
+                                   Margin="8,0,0,0"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                    <Button Grid.Column="1"
+                            Style="{StaticResource PanelButton}"
+                            Padding="6,2"
+                            FontSize="11"
+                            Click="OnNewSessionClick">
+                        <TextBlock Text="New Session" VerticalAlignment="Center" />
+                    </Button>
+                </Grid>
+                <TextBlock x:Name="SessionText"
+                           Margin="0,6,0,0"
+                           Text="Session --"
+                           FontSize="11"
+                           FontFamily="Consolas"
+                           Foreground="#8B949E" />
+                <TextBlock x:Name="TodayStatsText"
+                           Margin="0,4,0,0"
+                           Text="Today 0 req | in 0 | out 0 | cache 0%"
+                           FontSize="11"
+                           FontFamily="Consolas"
+                           Foreground="#E6EDF3" />
+                <TextBlock x:Name="ModelStatsText"
+                           Margin="0,4,0,0"
+                           Text=""
+                           FontSize="11"
+                           FontFamily="Consolas"
+                           Foreground="#8B949E"
+                           TextTrimming="CharacterEllipsis" />
+                <TextBlock x:Name="RecentRequestsText"
+                           Margin="0,4,0,0"
+                           Text=""
+                           FontSize="11"
+                           FontFamily="Consolas"
+                           Foreground="#8B949E" />
+            </StackPanel>
+
+            <Border x:Name="ErrorPanel"
+                    Grid.Row="6"
                     Margin="0,10,0,0"
                     Background="#3D1418"
                     BorderBrush="#DA3633"

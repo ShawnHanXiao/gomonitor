@@ -24,6 +24,8 @@ public partial class MonitorWindow : Window
     public event EventHandler? RefreshRequested;
     public event EventHandler? OpenConsoleRequested;
     public event EventHandler? SettingsRequested;
+    public event EventHandler? NewSessionRequested;
+    public event EventHandler? IgnoreModelHintRequested;
 
     public void ShowSnapshot(UsageSnapshot snapshot)
     {
@@ -62,7 +64,72 @@ public partial class MonitorWindow : Window
         }
 
         Left = area.Right - Width - 16;
-        Top = area.Bottom - height - 16;
+        Top = Math.Max(area.Top, area.Bottom - height - 16);
+    }
+
+    /// <summary>Renders the proxy section: state, sessions, today's stats, recent requests.</summary>
+    public void ShowProxy(
+        bool running,
+        string? baseUrl,
+        string? errorMessage,
+        int activeSessions,
+        string? currentSession,
+        ProxyDailyStats stats,
+        IReadOnlyList<ProxyRequestRecord> recent)
+    {
+        ProxyDot.Fill = CreateBrush(running ? "#3FB950" : errorMessage is null ? "#8B949E" : "#E5484D");
+        ProxyEndpoint.Text = running ? baseUrl ?? "running" : errorMessage ?? "off";
+        SessionText.Text = currentSession is null
+            ? $"Session -- | {activeSessions} active"
+            : $"Session {currentSession} | {activeSessions} active";
+
+        if (stats.TotalRequests == 0)
+        {
+            TodayStatsText.Text = "Today 0 req";
+            ModelStatsText.Text = string.Empty;
+            RecentRequestsText.Text = string.Empty;
+        }
+        else
+        {
+            var cacheHit = stats.TotalCacheReadTokens + stats.TotalInputTokens > 0
+                ? 100.0 * stats.TotalCacheReadTokens / (stats.TotalCacheReadTokens + stats.TotalInputTokens)
+                : 0;
+            var errorSuffix = stats.ErrorRequests > 0 ? $" | {stats.ErrorRequests} err" : string.Empty;
+            TodayStatsText.Text =
+                $"Today {stats.TotalRequests} req | in {FormatTokens(stats.TotalInputTokens)}"
+                + $" | out {FormatTokens(stats.TotalOutputTokens)} | cache {cacheHit:0}%{errorSuffix}";
+            ModelStatsText.Text = string.Join(
+                "  ",
+                stats.Models.Take(3).Select(m => $"{m.Model} x{m.Requests}"));
+            RecentRequestsText.Text = string.Join(
+                "\n",
+                recent.TakeLast(5).Select(FormatRecent));
+        }
+    }
+
+    /// <summary>Shows or hides the new-models hint bar.</summary>
+    public void ShowModelHint(ModelCatalogDiff? diff)
+    {
+        if (diff is { HasChanges: true })
+        {
+            var parts = new List<string>();
+            if (diff.Added.Count > 0)
+            {
+                parts.Add($"New models: {string.Join(", ", diff.Added)}");
+            }
+
+            if (diff.Removed.Count > 0)
+            {
+                parts.Add($"Removed: {string.Join(", ", diff.Removed)}");
+            }
+
+            ModelHintText.Text = string.Join(" | ", parts);
+            ModelHintPanel.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            ModelHintPanel.Visibility = Visibility.Collapsed;
+        }
     }
 
     private static void ApplyRow(WpfProgressBar bar, TextBlock percentText, UsageWindow window, bool hasError)
@@ -112,6 +179,25 @@ public partial class MonitorWindow : Window
         return new SolidColorBrush(color);
     }
 
+    private static string FormatRecent(ProxyRequestRecord record)
+    {
+        var time = record.Timestamp.ToLocalTime().ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
+        var model = string.IsNullOrEmpty(record.Model) ? "-" : record.Model;
+        return record.HasError
+            ? $"{time} ERR {model}: {Truncate(record.ErrorMessage ?? "error", 40)}"
+            : $"{time} {model} {FormatTokens(record.InputTokens)}/{FormatTokens(record.OutputTokens)}";
+    }
+
+    private static string Truncate(string value, int max) =>
+        value.Length <= max ? value : value[..(max - 3)] + "...";
+
+    private static string FormatTokens(long tokens) => tokens switch
+    {
+        >= 1_000_000 => $"{tokens / 1_000_000.0:0.#}M",
+        >= 1_000 => $"{tokens / 1_000.0:0.#}k",
+        _ => tokens.ToString(System.Globalization.CultureInfo.InvariantCulture),
+    };
+
     private void OnDeactivated(object sender, EventArgs e) => Hide();
 
     private void OnRefreshClick(object sender, RoutedEventArgs e) =>
@@ -122,4 +208,13 @@ public partial class MonitorWindow : Window
 
     private void OnSettingsClick(object sender, RoutedEventArgs e) =>
         SettingsRequested?.Invoke(this, EventArgs.Empty);
+
+    private void OnNewSessionClick(object sender, RoutedEventArgs e) =>
+        NewSessionRequested?.Invoke(this, EventArgs.Empty);
+
+    private void OnIgnoreModelHintClick(object sender, RoutedEventArgs e)
+    {
+        ModelHintPanel.Visibility = Visibility.Collapsed;
+        IgnoreModelHintRequested?.Invoke(this, EventArgs.Empty);
+    }
 }

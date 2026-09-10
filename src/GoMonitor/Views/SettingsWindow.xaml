@@ -71,10 +71,20 @@
             <Setter Property="Width" Value="160" />
             <Setter Property="HorizontalAlignment" Value="Left" />
         </Style>
+        <Style x:Key="FieldInput" TargetType="TextBox">
+            <Setter Property="Background" Value="#0D1117" />
+            <Setter Property="Foreground" Value="#E6EDF3" />
+            <Setter Property="BorderBrush" Value="#30363D" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="8,6" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
     </Window.Resources>
 
     <Grid Margin="20">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -112,7 +122,55 @@
                   Foreground="#E6EDF3"
                   FontSize="12" />
 
-        <StackPanel Grid.Row="4"
+        <StackPanel Grid.Row="4" Margin="0,16,0,0">
+            <Border Background="#21262D" Height="1" Margin="0,0,0,12" />
+            <CheckBox x:Name="ProxyEnabledCheck"
+                      Content="Enable OpenCode proxy (headers + session injection)"
+                      Foreground="#E6EDF3"
+                      FontSize="12" />
+            <Grid Margin="0,10,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="120" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <TextBlock Text="Port" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="0" />
+                <TextBox x:Name="ProxyPortBox" Grid.Column="1" Style="{StaticResource FieldInput}" Width="120" HorizontalAlignment="Left" />
+                <TextBlock Grid.Row="1" Text="Session idle hours" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="0,10,0,0" />
+                <TextBox x:Name="SessionIdleBox" Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldInput}" Width="120" HorizontalAlignment="Left" Margin="0,10,0,0" />
+            </Grid>
+            <Expander Margin="0,10,0,0" Foreground="#8B949E">
+                <Expander.Header>
+                    <TextBlock Text="Advanced" FontSize="12" Foreground="#8B949E" />
+                </Expander.Header>
+                <StackPanel Margin="0,8,0,0">
+                    <TextBlock Text="User-Agent" Style="{StaticResource FieldLabel}" />
+                    <TextBox x:Name="UserAgentBox" Style="{StaticResource FieldInput}" />
+                    <Grid Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="120" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="Upstream proto" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="0" />
+                        <TextBox x:Name="UpstreamProtoBox" Grid.Column="1" Style="{StaticResource FieldInput}" Width="120" HorizontalAlignment="Left" />
+                        <TextBlock Grid.Row="1" Text="Upstream host" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="0,10,0,0" />
+                        <TextBox x:Name="UpstreamHostBox" Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldInput}" Margin="0,10,0,0" />
+                    </Grid>
+                </StackPanel>
+            </Expander>
+            <TextBlock x:Name="ProxyHint"
+                       Text="Trae base URL: http://localhost:9355/zen/go/v1, model id: proxy-&lt;model&gt;"
+                       Style="{StaticResource FieldText}" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="5"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Margin="0,18,0,0">

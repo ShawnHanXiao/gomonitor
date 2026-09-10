@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Net.Http;
 using System.Windows;
 using System.Windows.Threading;
 using GoMonitor.Models;
@@ -32,6 +33,11 @@ public partial class App : System.Windows.Application
     private bool _refreshing;
     private UsageSnapshot? _lastSnapshot;
 
+    private SessionRegistry _sessions = null!;
+    private ProxyUsageRecorder _recorder = null!;
+    private OpenCodeProxyService _proxy = null!;
+    private ModelCatalogService _modelCatalog = null!;
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -56,6 +62,17 @@ public partial class App : System.Windows.Application
             "auth.json"));
         _usageService = new OpenCodeUsageService();
 
+        var goMonitorData = Path.Combine(appData, "GoMonitor");
+        _sessions = new SessionRegistry(TimeSpan.FromHours(_settings.EffectiveSessionIdleHours));
+        _recorder = new ProxyUsageRecorder(Path.Combine(goMonitorData, "proxy-usage"));
+        _recorder.LoadToday();
+        _proxy = new OpenCodeProxyService(_sessions, _recorder);
+        _proxy.StatsUpdated += OnProxyStatsUpdated;
+        _proxy.StateChanged += (_, _) => Dispatcher.Invoke(RefreshProxyUi);
+        _modelCatalog = new ModelCatalogService(
+            new HttpClient { Timeout = TimeSpan.FromSeconds(10) },
+            Path.Combine(goMonitorData, "known-models.json"));
+
         var activationThread = new Thread(OnActivationSignal)
         {
             IsBackground = true,
@@ -68,11 +85,16 @@ public partial class App : System.Windows.Application
         _trayIcon.RefreshRequested += async (_, _) => await RefreshAsync();
         _trayIcon.SettingsRequested += (_, _) => ShowSettings();
         _trayIcon.ExitRequested += (_, _) => Shutdown();
+        _trayIcon.ProxyToggleRequested += (_, _) => ToggleProxy();
+        _trayIcon.NewSessionRequested += (_, _) => ResetSessions();
 
         _monitorWindow = new MonitorWindow();
         _monitorWindow.RefreshRequested += async (_, _) => await RefreshAsync();
         _monitorWindow.OpenConsoleRequested += (_, _) => OpenConsole();
         _monitorWindow.SettingsRequested += (_, _) => ShowSettings();
+        _monitorWindow.NewSessionRequested += (_, _) => ResetSessions();
+        _monitorWindow.IgnoreModelHintRequested += async (_, _) =>
+            await _modelCatalog.AcknowledgeAsync();
 
         _timer = new DispatcherTimer
         {
@@ -82,6 +104,7 @@ public partial class App : System.Windows.Application
         _timer.Start();
 
         ApplyStartupSetting();
+        ApplyProxySetting();
 
         _ = RefreshAsync();
         if (!_startMinimized)
@@ -94,6 +117,7 @@ public partial class App : System.Windows.Application
     {
         _timer?.Stop();
         _trayIcon?.Dispose();
+        _proxy?.Dispose();
         base.OnExit(e);
     }
 
@@ -134,11 +158,70 @@ public partial class App : System.Windows.Application
             _lastSnapshot = snapshot;
             _trayIcon.Update(snapshot);
             _monitorWindow.ShowSnapshot(snapshot);
+            await CheckModelCatalogAsync();
         }
         finally
         {
             _refreshing = false;
         }
+    }
+
+    private async Task CheckModelCatalogAsync()
+    {
+        try
+        {
+            var diff = await _modelCatalog.FetchDiffAsync();
+            if (diff is { HasChanges: true })
+            {
+                _monitorWindow.ShowModelHint(diff);
+            }
+        }
+        catch (Exception)
+        {
+            // Model catalog is best-effort; ignore failures.
+        }
+    }
+
+    private void ApplyProxySetting()
+    {
+        // Always restart so port/UA/upstream changes take effect immediately.
+        _proxy.Stop();
+        if (_settings.ProxyEnabled)
+        {
+            var key = _authProvider.Resolve(_settings.ApiKeyOverride);
+            _proxy.Start(_settings, key);
+        }
+
+        RefreshProxyUi();
+    }
+
+    private void ToggleProxy()
+    {
+        _settings.ProxyEnabled = !_settings.ProxyEnabled;
+        _settingsService.Save(_settings);
+        ApplyProxySetting();
+    }
+
+    private void ResetSessions()
+    {
+        _proxy.ResetSessions();
+        RefreshProxyUi();
+    }
+
+    private void OnProxyStatsUpdated(object? sender, EventArgs e) =>
+        Dispatcher.Invoke(RefreshProxyUi);
+
+    private void RefreshProxyUi()
+    {
+        _trayIcon.UpdateProxyState(_proxy.IsRunning, _settings.EffectiveProxyPort);
+        _monitorWindow.ShowProxy(
+            _proxy.IsRunning,
+            _proxy.BaseUrl,
+            _proxy.LastError,
+            _sessions.ActiveSessionCount,
+            _sessions.CurrentSessionId,
+            _recorder.Snapshot(),
+            _recorder.RecentRequests());
     }
 
     private void ToggleMonitor()
@@ -188,6 +271,7 @@ public partial class App : System.Windows.Application
         _settings = settings;
         _settingsService.Save(settings);
         ApplyStartupSetting();
+        ApplyProxySetting();
         _timer.Interval = TimeSpan.FromSeconds(settings.EffectivePollIntervalSeconds);
         _ = RefreshAsync();
     }

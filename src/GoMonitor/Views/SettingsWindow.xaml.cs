@@ -16,12 +16,24 @@ public partial class SettingsWindow : Window
         {
             ApiKeyOverride = current.ApiKeyOverride,
             PollIntervalSeconds = current.EffectivePollIntervalSeconds,
-            StartWithWindows = current.StartWithWindows
+            StartWithWindows = current.StartWithWindows,
+            ProxyEnabled = current.ProxyEnabled,
+            ProxyPort = current.EffectiveProxyPort,
+            ProxyUserAgent = current.ProxyUserAgent,
+            SessionIdleHours = current.EffectiveSessionIdleHours,
+            UpstreamProto = current.UpstreamProto,
+            UpstreamHost = current.UpstreamHost,
         };
 
         ApiKeyBox.Password = current.ApiKeyOverride ?? string.Empty;
         SelectInterval(current.EffectivePollIntervalSeconds);
         StartupCheck.IsChecked = current.StartWithWindows;
+        ProxyEnabledCheck.IsChecked = current.ProxyEnabled;
+        ProxyPortBox.Text = current.EffectiveProxyPort.ToString();
+        SessionIdleBox.Text = current.EffectiveSessionIdleHours.ToString();
+        UserAgentBox.Text = current.ProxyUserAgent;
+        UpstreamProtoBox.Text = current.UpstreamProto;
+        UpstreamHostBox.Text = current.UpstreamHost;
 
         if (!string.IsNullOrWhiteSpace(current.ApiKeyOverride))
         {
@@ -37,6 +49,18 @@ public partial class SettingsWindow : Window
             string.IsNullOrWhiteSpace(ApiKeyBox.Password) ? null : ApiKeyBox.Password;
         _settings.PollIntervalSeconds = GetSelectedInterval();
         _settings.StartWithWindows = StartupCheck.IsChecked == true;
+        _settings.ProxyEnabled = ProxyEnabledCheck.IsChecked == true;
+        _settings.ProxyPort = int.TryParse(ProxyPortBox.Text.Trim(), out var port) ? port : 9355;
+        _settings.SessionIdleHours = int.TryParse(SessionIdleBox.Text.Trim(), out var idle) ? idle : 6;
+        _settings.ProxyUserAgent = string.IsNullOrWhiteSpace(UserAgentBox.Text)
+            ? "opencode/1.18.29 cli"
+            : UserAgentBox.Text.Trim();
+        _settings.UpstreamProto = string.IsNullOrWhiteSpace(UpstreamProtoBox.Text)
+            ? "https"
+            : UpstreamProtoBox.Text.Trim();
+        _settings.UpstreamHost = string.IsNullOrWhiteSpace(UpstreamHostBox.Text)
+            ? "opencode.ai"
+            : UpstreamHostBox.Text.Trim();
         Saved?.Invoke(this, _settings);
         Close();
     }

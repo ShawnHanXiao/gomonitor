@@ -1,1 +1,12 @@
 .temp/*
+.vs/*
+*.user
+
+# Build outputs
+bin/
+obj/
+publish/
+
+# Local runtime data
+proxy-usage/
+known-models.json

@@ -23,16 +23,28 @@ public sealed class TrayIconController : IDisposable
 
         _menu.Items.Add(CreateMenuItem("Open Monitor", () => OpenMonitorRequested?.Invoke(this, EventArgs.Empty)));
         _menu.Items.Add(CreateMenuItem("Refresh Now", () => RefreshRequested?.Invoke(this, EventArgs.Empty)));
+        _proxyMenuItem = CreateMenuItem("Proxy: Off", () => ProxyToggleRequested?.Invoke(this, EventArgs.Empty));
+        _menu.Items.Add(_proxyMenuItem);
+        _menu.Items.Add(CreateMenuItem("New Session", () => NewSessionRequested?.Invoke(this, EventArgs.Empty)));
         _menu.Items.Add(CreateMenuItem("Settings", () => SettingsRequested?.Invoke(this, EventArgs.Empty)));
         _menu.Items.Add(new ToolStripSeparator());
         _menu.Items.Add(CreateMenuItem("Exit", () => ExitRequested?.Invoke(this, EventArgs.Empty)));
         _notifyIcon.ContextMenuStrip = _menu;
     }
 
+    private readonly ToolStripMenuItem _proxyMenuItem;
+
     public event EventHandler? OpenMonitorRequested;
     public event EventHandler? RefreshRequested;
     public event EventHandler? SettingsRequested;
     public event EventHandler? ExitRequested;
+    public event EventHandler? ProxyToggleRequested;
+    public event EventHandler? NewSessionRequested;
+
+    public void UpdateProxyState(bool running, int port)
+    {
+        _proxyMenuItem.Text = running ? $"Proxy: Running ({port})" : "Proxy: Off";
+    }
 
     public void Update(UsageSnapshot snapshot)
     {
