@@ -11,6 +11,10 @@ public sealed class TrayIconController : IDisposable
     private readonly NotifyIcon _notifyIcon = new();
     private readonly ContextMenuStrip _menu = new();
 
+    // 底色渐变（对应 icon-bolt-trio.svg 的背景）
+    private const string BackgroundTop = "#3E8BFF";
+    private const string BackgroundBottom = "#0A35C8";
+
     private Icon? _currentIcon;
     private bool _disposed;
 
@@ -135,36 +139,26 @@ public sealed class TrayIconController : IDisposable
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
         graphics.Clear(Color.Transparent);
 
-        // 峰时绘制黄色圆角底色，谷时无底色
-        if (isPeak)
+        // 对应 design/icon-bolt-trio.svg：蓝色渐变圆角底色 + 顶部高光 + 三道光泽闪电
+        using (var background = CreateRoundedRectPath(0, 0, 32, 32, 7))
+        using (var bgBrush = new LinearGradientBrush(new Rectangle(0, 0, 32, 32),
+            ColorTranslator.FromHtml(BackgroundTop),
+            ColorTranslator.FromHtml(BackgroundBottom), 59f))
         {
-            using var background = CreateRoundedRectPath(0, 0, 32, 32, 7);
-            using var backgroundBrush = new SolidBrush(ColorTranslator.FromHtml(ThresholdRule.Yellow));
-            graphics.FillPath(backgroundBrush, background);
-        }
+            graphics.FillPath(bgBrush, background);
 
-        // 三个直角方块纵向排列（不重叠），从上至下：5小时 / 每周 / 每月
-        const int barWidth = 28;
-        const int barHeight = 8;
-        const int barLeft = 2;
-        const int gap = 2;
-        const int top = 2;
-
-        for (var i = 0; i < 3; i++)
-        {
-            var y = top + i * (barHeight + gap);
-            var color = ColorTranslator.FromHtml(colorHexes[i]);
-
-            using (var fill = new SolidBrush(color))
+            // 顶部高光：白色 35% → 0（至 55% 高度处消失）
+            graphics.SetClip(new Rectangle(0, 0, 32, 18));
+            using (var shineBrush = new LinearGradientBrush(new Rectangle(0, 0, 32, 18),
+                Color.FromArgb(89, Color.White), Color.FromArgb(0, Color.White), 90f))
             {
-                graphics.FillRectangle(fill, barLeft, y, barWidth, barHeight);
+                graphics.FillPath(shineBrush, background);
             }
 
-            using var edge = new Pen(Color.FromArgb(70, 0, 0, 0), 1);
-            graphics.DrawRectangle(edge, barLeft, y, barWidth - 1, barHeight - 1);
-
-            DrawLightning(graphics, barLeft, y, barWidth, barHeight);
+            graphics.ResetClip();
         }
+
+        DrawBolts(graphics, colorHexes);
 
         var handle = bitmap.GetHicon();
         try
@@ -178,6 +172,60 @@ public sealed class TrayIconController : IDisposable
         }
     }
 
+    // 闪电多边形模板（viewBox 100 坐标系，上下尖、中段稍宽）
+    private static readonly PointF[] BoltTemplate =
+    {
+        new(20f, 0f), new(2f, 42f), new(14f, 42f), new(6f, 80f), new(29f, 33f), new(16f, 33f),
+    };
+
+    // 三道闪电 x 位置（viewBox 100 坐标系）：左 / 中 / 右
+    private static readonly float[] BoltXPositions = { 14f, 37f, 59f };
+
+    // 各状态颜色的光泽渐变（上亮下深）
+    private static readonly Dictionary<string, (string Top, string Bottom)> BoltGradients = new()
+    {
+        [ThresholdRule.Blue] = ("#7FE0FF", "#1E88F0"),
+        [ThresholdRule.Yellow] = ("#FFF35C", "#FFC800"),
+        [ThresholdRule.Red] = ("#FF8A70", "#E62E1E"),
+        [ThresholdRule.Gray] = ("#B0B8C4", "#7A828E"),
+    };
+
+    private static void DrawBolts(Graphics graphics, IReadOnlyList<string> colorHexes)
+    {
+        const float scale = 0.32f; // viewBox 100 → 32px 图标
+        // 绘制顺序：右→左，使左侧闪电压住右侧闪电
+        for (var i = 2; i >= 0; i--)
+        {
+            var (topHex, bottomHex) = BoltGradients[colorHexes[i]];
+            using var matrix = new Matrix();
+            matrix.RotateAt(12f, new PointF(15f * scale, 40f * scale));
+            matrix.Translate(BoltXPositions[i] * scale, 10f * scale, MatrixOrder.Append);
+
+            var points = BoltTemplate
+                .Select(p => new PointF(p.X * scale, p.Y * scale))
+                .Select(p =>
+                {
+                    PointF[] pt = { p };
+                    matrix.TransformPoints(pt);
+                    return pt[0];
+                })
+                .ToArray();
+
+            var minX = points.Min(p => p.X);
+            var maxX = points.Max(p => p.X);
+            var minY = points.Min(p => p.Y);
+            var maxY = points.Max(p => p.Y);
+            var bounds = new RectangleF(minX, minY, Math.Max(maxX - minX, 1f), Math.Max(maxY - minY, 1f));
+
+            using var brush = new LinearGradientBrush(bounds,
+                ColorTranslator.FromHtml(topHex), ColorTranslator.FromHtml(bottomHex), 90f);
+            using var pen = new Pen(brush, 4f * scale) { LineJoin = LineJoin.Round };
+
+            graphics.FillPolygon(brush, points);
+            graphics.DrawPolygon(pen, points); // 模拟 SVG stroke-linejoin=round 的圆角
+        }
+    }
+
     private static GraphicsPath CreateRoundedRectPath(int x, int y, int width, int height, int radius)
     {
         var path = new GraphicsPath();
@@ -188,27 +236,6 @@ public sealed class TrayIconController : IDisposable
         path.AddArc(x, y + height - diameter, diameter, diameter, 90, 90);
         path.CloseFigure();
         return path;
-    }
-
-    private static void DrawLightning(Graphics graphics, int left, int top, int width, int height)
-    {
-        // 闪电居中于方块内
-        var cx = left + width / 2f;
-        var cy = top + height / 2f;
-        var s = height * 0.55f; // 闪电半尺寸
-
-        var points = new[]
-        {
-            new PointF(cx + s * 0.15f, cy - s),
-            new PointF(cx - s * 0.55f, cy + s * 0.15f),
-            new PointF(cx - s * 0.05f, cy + s * 0.15f),
-            new PointF(cx - s * 0.15f, cy + s),
-            new PointF(cx + s * 0.55f, cy - s * 0.15f),
-            new PointF(cx + s * 0.05f, cy - s * 0.15f),
-        };
-
-        using var brush = new SolidBrush(Color.White);
-        graphics.FillPolygon(brush, points);
     }
 
     [DllImport("user32.dll")]

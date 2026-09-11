@@ -11,40 +11,82 @@
   .card { background:#161b22; border:1px solid #30363d; border-radius:12px; padding:24px; width:220px; text-align:center; }
   .card h2 { font-size:15px; margin:0 0 4px; }
   .card .desc { color:#8b949e; font-size:12px; margin-bottom:16px; min-height:32px; }
-  .card img { width:96px; height:96px; image-rendering:auto; }
+  .card .ph { height:96px; display:flex; align-items:center; justify-content:center; }
   .legend { margin-top:20px; font-size:12px; color:#8b949e; text-align:left; }
   .legend div { margin:4px 0; }
   .swatch { display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:6px; vertical-align:middle; }
+  .note { margin-top:24px; font-size:12px; color:#8b949e; }
 </style>
 </head>
 <body>
-  <h1>GoMonitor 托盘图标 — 三闪电纵向排列方案</h1>
-  <div class="sub">从上至下：5小时 / 每周 / 每月 · 颜色定义不变（绿→黄→橙→红→灰）</div>
+  <h1>GoMonitor 托盘图标 — 三闪电横向排列方案</h1>
+  <div class="sub">从左至右：5小时 / 每周 / 每月 · 统一大小（高度 80%，横向总宽 ~80%，左侧压右侧）</div>
 
-  <div class="row">
-    <div class="card">
-      <h2>方案 A</h2>
-      <div class="desc">三个独立圆角方块，纵向排列，闪电居中</div>
-      <img src="icon-variant-a.svg" alt="方案A">
-    </div>
-    <div class="card">
-      <h2>方案 B</h2>
-      <div class="desc">三个闪电大小递增，体现时间跨度层级</div>
-      <img src="icon-variant-b.svg" alt="方案B">
-    </div>
-    <div class="card">
-      <h2>方案 C</h2>
-      <div class="desc">统一深色圆角容器，闪电等距排列</div>
-      <img src="icon-variant-c.svg" alt="方案C">
-    </div>
-  </div>
+  <div class="row" id="cards"></div>
 
   <div class="legend">
-    <div><span class="swatch" style="background:#3FB950"></span>5小时用量 &lt; 60%</div>
-    <div><span class="swatch" style="background:#E3B341"></span>每周用量 60–80%</div>
-    <div><span class="swatch" style="background:#F0883E"></span>每月用量 80–95%</div>
-    <div><span class="swatch" style="background:#E5484D"></span>≥95% 红色</div>
-    <div><span class="swatch" style="background:#8B949E"></span>错误/无 Key 灰色</div>
+    <div><span class="swatch" style="background:#3FC6F5"></span>使用量 &lt; 60%（蓝）</div>
+    <div><span class="swatch" style="background:#FFDD2E"></span>使用量 60–85%（黄）</div>
+    <div><span class="swatch" style="background:#F5483F"></span>使用量 ≥ 85%（红）</div>
+    <div><span class="swatch" style="background:#8B949E"></span>错误 / 无 Key（灰）</div>
   </div>
+
+  <div class="note">基础图标资源：design/icon-bolt-trio.svg（参考图配色，可作应用 logo）</div>
+
+<script>
+// 闪电：上下两头尖、中段横向稍宽
+const BOLT = "M20 0 L2 42 L14 42 L6 80 L29 33 L16 33 Z";
+// 各颜色光泽渐变（上亮下深）
+const BOLT_COLORS = {
+  blue:   { top: "#7FE0FF", bot: "#1E88F0" },
+  yellow: { top: "#FFF35C", bot: "#FFC800" },
+  red:    { top: "#FF8A70", bot: "#E62E1E" },
+  gray:   { top: "#B0B8C4", bot: "#7A828E" },
+};
+let uidSeq = 0;
+
+// colors: [5小时, 每周, 每月] 从左至右；渲染时右→左绘制，左侧压右侧
+function iconSvg(colors, size = 96) {
+  const uid = "i" + (++uidSeq);
+  const grads = colors.map((c, i) => {
+    const s = BOLT_COLORS[c], gid = `${uid}b${i}`;
+    return `<linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${s.top}"/><stop offset="1" stop-color="${s.bot}"/>
+    </linearGradient>`;
+  }).join("");
+  const bolts = colors.map((c, i) => i).reverse().map(i =>
+    `<g transform="translate(${14 + i * 22} 10) rotate(12 15 40)">` +
+    `<path d="${BOLT}" fill="url(#${uid}b${i})" stroke="url(#${uid}b${i})"/>` +
+    `</g>`).join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${size}" height="${size}">
+    <defs>
+      <linearGradient id="${uid}bg" x1="0" y1="0" x2="0.6" y2="1">
+        <stop offset="0" stop-color="#3E8BFF"/><stop offset="1" stop-color="#0A35C8"/>
+      </linearGradient>
+      <linearGradient id="${uid}sh" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.35"/>
+        <stop offset="0.55" stop-color="#FFFFFF" stop-opacity="0"/>
+      </linearGradient>
+      ${grads}
+    </defs>
+    <rect width="100" height="100" rx="22" fill="url(#${uid}bg)"/>
+    <g stroke-linejoin="round" stroke-width="4">${bolts}</g>
+    <rect width="100" height="100" rx="22" fill="url(#${uid}sh)"/>
+  </svg>`;
+}
+
+const states = [
+  { title: "全部正常", desc: "5小时 / 每周 / 每月均 < 60%", colors: ["blue", "blue", "blue"] },
+  { title: "阶梯用量", desc: "5h < 60% · 周 60–85% · 月 ≥ 85%（参考图配色）", colors: ["blue", "yellow", "red"] },
+  { title: "周月偏高", desc: "5h < 60% · 周、月 60–85%", colors: ["blue", "yellow", "yellow"] },
+  { title: "全面告警", desc: "三项均 ≥ 85%", colors: ["red", "red", "red"] },
+  { title: "错误 / 无 Key", desc: "任一项获取失败时整体置灰", colors: ["gray", "gray", "gray"] },
+  { title: "局部失败", desc: "5h < 60% · 周失败 · 月 ≥ 85%", colors: ["blue", "gray", "red"] },
+];
+
+document.getElementById("cards").innerHTML = states.map(s =>
+  `<div class="card"><h2>${s.title}</h2><div class="desc">${s.desc}</div>
+   <div class="ph">${iconSvg(s.colors)}</div></div>`).join("");
+</script>
 </body>
 </html>

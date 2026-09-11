@@ -5,13 +5,11 @@ namespace GoMonitor.Tests;
 public class ThresholdColorTests
 {
     [Theory]
-    [InlineData(0, ThresholdRule.Green)]
-    [InlineData(59.9, ThresholdRule.Green)]
+    [InlineData(0, ThresholdRule.Blue)]
+    [InlineData(59.9, ThresholdRule.Blue)]
     [InlineData(60, ThresholdRule.Yellow)]
-    [InlineData(79.9, ThresholdRule.Yellow)]
-    [InlineData(80, ThresholdRule.Orange)]
-    [InlineData(94.9, ThresholdRule.Orange)]
-    [InlineData(95, ThresholdRule.Red)]
+    [InlineData(84.9, ThresholdRule.Yellow)]
+    [InlineData(85, ThresholdRule.Red)]
     [InlineData(100, ThresholdRule.Red)]
     public void ColorFor_Boundaries_MapCorrectly(double percent, string expected)
     {

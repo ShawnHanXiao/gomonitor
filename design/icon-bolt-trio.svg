@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#3E8BFF"/>
+      <stop offset="1" stop-color="#0A35C8"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.35"/>
+      <stop offset="0.55" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="boltB" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7FE0FF"/>
+      <stop offset="1" stop-color="#1E88F0"/>
+    </linearGradient>
+    <linearGradient id="boltY" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFF35C"/>
+      <stop offset="1" stop-color="#FFC800"/>
+    </linearGradient>
+    <linearGradient id="boltR" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FF8A70"/>
+      <stop offset="1" stop-color="#E62E1E"/>
+    </linearGradient>
+  </defs>
+  <rect width="100" height="100" rx="22" fill="url(#bg)"/>
+  <!-- 绘制顺序：右→左，使左侧闪电压住右侧闪电 -->
+  <g stroke-linejoin="round" stroke-width="4">
+    <g transform="translate(59 10) rotate(12 15 40)">
+      <path d="M20 0 L2 42 L14 42 L6 80 L29 33 L16 33 Z" fill="url(#boltR)" stroke="url(#boltR)"/>
+    </g>
+    <g transform="translate(37 10) rotate(12 15 40)">
+      <path d="M20 0 L2 42 L14 42 L6 80 L29 33 L16 33 Z" fill="url(#boltY)" stroke="url(#boltY)"/>
+    </g>
+    <g transform="translate(14 10) rotate(12 15 40)">
+      <path d="M20 0 L2 42 L14 42 L6 80 L29 33 L16 33 Z" fill="url(#boltB)" stroke="url(#boltB)"/>
+    </g>
+  </g>
+  <rect width="100" height="100" rx="22" fill="url(#shine)"/>
+</svg>
