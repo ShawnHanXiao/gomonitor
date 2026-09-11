@@ -66,7 +66,10 @@ public partial class App : System.Windows.Application
         _sessions = new SessionRegistry(TimeSpan.FromHours(_settings.EffectiveSessionIdleHours));
         _recorder = new ProxyUsageRecorder(Path.Combine(goMonitorData, "proxy-usage"));
         _recorder.LoadToday();
-        _proxy = new OpenCodeProxyService(_sessions, _recorder);
+        _proxy = new OpenCodeProxyService(_sessions, _recorder)
+        {
+            ErrorLogPath = Path.Combine(goMonitorData, "proxy-errors.log"),
+        };
         _proxy.StatsUpdated += OnProxyStatsUpdated;
         _proxy.StateChanged += (_, _) => Dispatcher.Invoke(RefreshProxyUi);
         _modelCatalog = new ModelCatalogService(

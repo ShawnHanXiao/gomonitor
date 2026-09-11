@@ -27,6 +27,7 @@ public sealed class OpenCodeProxyService : IDisposable
     };
 
     private readonly object _startLock = new();
+    private readonly object _logLock = new();
     private readonly HttpClient _upstream;
     private readonly SessionRegistry _sessions;
     private readonly ProxyUsageRecorder _recorder;
@@ -57,6 +58,9 @@ public sealed class OpenCodeProxyService : IDisposable
 
     /// <summary>Detail of the most recent per-request failure (diagnostics/testing).</summary>
     public string? LastRequestError { get; private set; }
+
+    /// <summary>Optional file path where full failure details (incl. inner exceptions) are appended.</summary>
+    public string? ErrorLogPath { get; set; }
 
     public event EventHandler? StateChanged;
 
@@ -170,8 +174,7 @@ public sealed class OpenCodeProxyService : IDisposable
             (sessionId, var requestIndex) = _sessions.Resolve(explicitSession, hash);
 
             using var upstreamRequest = BuildUpstreamRequest(request, settings, body, sessionId, requestIndex, apiKey);
-            using var upstreamResponse = await _upstream
-                .SendAsync(upstreamRequest, HttpCompletionOption.ResponseHeadersRead, token)
+            using var upstreamResponse = await SendWithRetryAsync(upstreamRequest, token)
                 .ConfigureAwait(false);
 
             CopyResponseHeaders(upstreamResponse, response);
@@ -185,6 +188,7 @@ public sealed class OpenCodeProxyService : IDisposable
         catch (Exception ex)
         {
             LastRequestError = ex.ToString();
+            AppendErrorLog(startedAt, sessionId, model, ex.ToString());
             TryRespondBadGateway(response, ex.Message);
             Record(startedAt, sessionId, model, null, true, ex.Message);
         }
@@ -266,6 +270,56 @@ public sealed class OpenCodeProxyService : IDisposable
         }
 
         return upstream;
+    }
+
+    /// <summary>
+    /// Sends the request, retrying TLS handshake failures. A handshake failure means
+    /// no request bytes reached the upstream, so retrying is safe (no double billing).
+    /// </summary>
+    private async Task<HttpResponseMessage> SendWithRetryAsync(HttpRequestMessage request, CancellationToken token)
+    {
+        const int MaxAttempts = 3;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await _upstream
+                    .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token)
+                    .ConfigureAwait(false);
+            }
+            catch (HttpRequestException ex) when (
+                attempt < MaxAttempts &&
+                ex.InnerException is System.Security.Authentication.AuthenticationException)
+            {
+                var note = $"TLS handshake failed (attempt {attempt}/{MaxAttempts}), retrying: {ex}";
+                LastRequestError = note;
+                AppendErrorLog(DateTimeOffset.Now, string.Empty, string.Empty, note);
+                await Task.Delay(200 * attempt, token).ConfigureAwait(false);
+            }
+        }
+    }
+
+    private void AppendErrorLog(DateTimeOffset timestamp, string sessionId, string model, string detail)
+    {
+        var path = ErrorLogPath;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        try
+        {
+            var line = $"[{timestamp:yyyy-MM-dd HH:mm:ss}] session={sessionId} model={model}\n{detail}\n";
+            lock (_logLock)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                File.AppendAllText(path, line, Encoding.UTF8);
+            }
+        }
+        catch (IOException)
+        {
+            // Logging must never break the proxy.
+        }
     }
 
     private static void CopyResponseHeaders(HttpResponseMessage source, HttpListenerResponse target)
