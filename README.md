@@ -1,56 +1,56 @@
 # GoMonitor
 
-GoMonitor 是一个 Windows 托盘常驻工具，用于监控 [OpenCode Go](https://opencode.ai) 的 API 用量，并内置本地反向代理，解决 Trae IDE 直连 OpenCode Go 时缺失 `x-opencode-session` 会话头导致的 400 错误。
+GoMonitor is a Windows system-tray utility that monitors [OpenCode Go](https://opencode.ai) API usage, with a built-in local reverse proxy that fixes the 400 error caused by Trae IDE not sending the required `x-opencode-session` header when calling OpenCode Go directly.
 
-![GoMonitor 图标](design/icon-bolt-trio.svg)
+![GoMonitor icon](design/icon-bolt-trio.svg)
 
-## 功能特性
+## Features
 
-### 用量监控
+### Usage Monitoring
 
-- 每 60 秒（可配置）轮询官方用量接口 `GET https://opencode.ai/zen/go/v1/usage`
-- 托盘图标实时展示 **5 小时 / 每周 / 每月** 三个窗口期的用量等级
-- 鼠标 hover 显示一行紧凑摘要：`5h 13.0% | Week 12.0% | Month 8.0% | Off-Peak`
-- 左键单击弹出无边框深色用量面板：百分比、进度条、重置倒计时、Refresh、Open Console
-- 异常状态（无 Key、网络失败、解析失败）保留上次数据并以灰色图标 + 错误摘要提示
+- Polls the official usage endpoint `GET https://opencode.ai/zen/go/v1/usage` every 60 seconds (configurable)
+- Tray icon shows the usage level of the **5-hour / weekly / monthly** windows in real time
+- Hover tooltip shows a compact one-line summary: `5h 13.0% | Week 12.0% | Month 8.0% | Off-Peak`
+- Left-click opens a borderless dark usage panel: percentages, progress bars, reset countdowns, Refresh, Open Console
+- On errors (missing key, network failure, parse failure) the last known data is kept and indicated with a gray icon plus an error summary
 
-### 托盘图标
+### Tray Icon
 
-图标为蓝色渐变圆角底上的三道光泽闪电，从左至右依次对应 **5 小时 / 每周 / 每月**，每道闪电的颜色代表对应窗口期的用量等级：
+The icon is a glossy blue gradient rounded square with three lightning bolts — left to right: **5-hour / weekly / monthly**. Each bolt's color represents the usage level of its window:
 
-| 颜色 | 含义 |
+| Color | Meaning |
 | --- | --- |
-| 🔵 蓝色 `#3FC6F5` | 使用量 `< 60%` |
-| 🟡 黄色 `#FFDD2E` | 使用量 `60% – 85%` |
-| 🔴 红色 `#F5483F` | 使用量 `≥ 85%` |
-| ⚪ 灰色 `#8B949E` | 错误 / 无 Key / 不可用 |
+| 🔵 Blue `#3FC6F5` | usage `< 60%` |
+| 🟡 Yellow `#FFDD2E` | usage `60% – 85%` |
+| 🔴 Red `#F5483F` | usage `≥ 85%` |
+| ⚪ Gray `#8B949E` | error / no key / unavailable |
 
-图标由 `System.Drawing` 在运行时绘制（源码见 `src/GoMonitor/Services/TrayIconController.cs`），设计与预览资源位于 [design/](design/) 目录（含 [preview.html](design/preview.html) 全状态预览页）。
+The icon is drawn at runtime with `System.Drawing` (see `src/GoMonitor/Services/TrayIconController.cs`). Design assets and previews live in the [design/](design/) directory (including a full-state preview page: [preview.html](design/preview.html)).
 
-### OpenCode 本地反向代理
+### OpenCode Local Reverse Proxy
 
-OpenCode 自 2026-09-06 起要求对 `opencode.ai/zen/go/v1/*` 的请求携带 `x-opencode-session` 等会话头，Trae IDE 直连不发送该头，导致 400 错误。GoMonitor 内置代理可透明解决：
+Since 2026-09-06, OpenCode requires requests to `opencode.ai/zen/go/v1/*` to carry the `x-opencode-session` header; Trae IDE does not send it, resulting in 400 errors. GoMonitor's built-in proxy fixes this transparently:
 
-- **透明转发**：进程内监听 `127.0.0.1:9355`，自动注入 `x-opencode-session` / `x-opencode-request` / `x-opencode-client` / `x-opencode-project` / `User-Agent` 等会话头
-- **会话管理**：基于 `SHA256(system prompt + 首条 user 消息)` 稳定哈希识别会话，同一对话保持同一 session ID 以保留提示词缓存（缓存命中率约 99%）；支持会话空闲过期（默认 6 小时）与手动 "New Session" 重置
-- **模型名重写**：模型 ID 带 `proxy-` 前缀（如 `proxy-glm-5.3-flash`）时自动剥离前缀转发真实模型名，避免 Trae 将官方模型名路由到自己的云端通道
-- **Token 统计**：旁路解析响应中的 usage（输入 / 输出 / 缓存 token），按天持久化到 `proxy-usage/YYYY-MM-DD.jsonl`，面板展示今日汇总、按模型分组统计与最近请求
-- **模型更新提示**：定期拉取官方模型列表并与本地快照 diff，发现新增 / 下架模型时在面板提示
-- **SSE 流式透传**：不整体缓冲响应，客户端断开时联动取消上游请求
+- **Transparent forwarding**: listens on `127.0.0.1:9355` in-process and injects `x-opencode-session` / `x-opencode-request` / `x-opencode-client` / `x-opencode-project` / `User-Agent` headers automatically
+- **Session management**: identifies sessions via a stable `SHA256(system prompt + first user message)` hash so the same conversation keeps the same session ID, preserving prompt-cache hits (~99%); supports idle expiry (6 hours by default) and a manual "New Session" reset
+- **Model name rewriting**: model IDs with the `proxy-` prefix (e.g. `proxy-glm-5.3-flash`) are stripped before forwarding, preventing Trae from routing official model names through its own cloud channel
+- **Token statistics**: parses usage from responses out-of-band (input / output / cache tokens), persists daily records to `proxy-usage/YYYY-MM-DD.jsonl`, and shows today's summary, per-model breakdown and recent requests in the panel
+- **Model update hints**: periodically fetches the official model list and diffs it against the local snapshot, surfacing newly added / removed models in the panel
+- **SSE streaming pass-through**: responses are not buffered as a whole; upstream requests are cancelled when the client disconnects
 
-### 其他
+### Misc
 
-- 开机自启（写入 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`，以 `--minimized` 参数仅驻留托盘）
-- 单实例运行，关闭窗口仅隐藏，通过托盘菜单 `Exit` 退出
+- Start with Windows (writes `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, launched with `--minimized` so only the tray icon appears)
+- Single-instance; closing windows only hides them — exit via the tray menu
 
-## 快速开始
+## Getting Started
 
-### 环境要求
+### Requirements
 
 - Windows 10/11
-- .NET 9 SDK（构建 / 开发）；运行发布产物则无需安装运行时
+- .NET 9 SDK (to build/develop); the published binary is self-contained
 
-### 构建与测试
+### Build & Test
 
 ```powershell
 git clone https://github.com/ShawnHanXiao/gomonitor.git
@@ -59,7 +59,7 @@ dotnet build GoMonitor.sln
 dotnet test GoMonitor.sln
 ```
 
-### 发布单文件 exe
+### Publish a Single-File Executable
 
 ```powershell
 dotnet publish src/GoMonitor/GoMonitor.csproj `
@@ -69,76 +69,76 @@ dotnet publish src/GoMonitor/GoMonitor.csproj `
   -o publish
 ```
 
-产物为 `publish/GoMonitor.exe`（约 74 MB 自包含单文件，可独立运行）。
+The output is `publish/GoMonitor.exe` (~74 MB self-contained single file, runs without .NET installed).
 
-## 认证与配置
+## Authentication & Configuration
 
-GoMonitor 按以下优先级获取 API Key：
+GoMonitor resolves the API key in this order:
 
-1. 设置窗口中手动填写的 Key 覆盖值
-2. OpenCode 本机认证文件 `~/.local/share/opencode/auth.json` 中的 `opencode-go.key`
+1. The override key entered in the Settings window
+2. The `opencode-go.key` entry in the local OpenCode auth file `~/.local/share/opencode/auth.json`
 
-所有数据文件均位于 `%APPDATA%\GoMonitor\`：
+All data files live under `%APPDATA%\GoMonitor\`:
 
-| 文件 | 说明 |
+| File | Purpose |
 | --- | --- |
-| `settings.json` | 应用设置（轮询间隔、开机自启、代理开关 / 端口 / UA、会话空闲时长等） |
-| `known-models.json` | 官方模型列表快照（用于更新提示 diff） |
-| `proxy-usage/YYYY-MM-DD.jsonl` | 代理每日请求记录（默认保留 90 天） |
-| `proxy-errors.log` | 代理请求失败详情（含内部异常） |
+| `settings.json` | App settings (poll interval, start with Windows, proxy on/off / port / UA, session idle hours, etc.) |
+| `known-models.json` | Snapshot of the official model list (used for update diffs) |
+| `proxy-usage/YYYY-MM-DD.jsonl` | Daily proxy request records (90-day retention by default) |
+| `proxy-errors.log` | Proxy failure details, including inner exceptions |
 
-## 使用 OpenCode 代理
+## Using the OpenCode Proxy
 
-1. 托盘右键菜单 → `Settings`，启用 Proxy（或使用菜单 `Proxy: Off/Running` 快捷开关）
-2. 在 Trae 中将 OpenCode 自定义模型配置为：
+1. Tray right-click menu → `Settings`, enable the proxy (or toggle it via the `Proxy: Off/Running` menu item)
+2. Configure your OpenCode custom model in Trae as:
 
-   - **Base URL**：`http://127.0.0.1:9355/zen/go/v1`
-   - **Model ID**：`proxy-<真实模型名>`，例如 `proxy-glm-5.3-flash`
-   - **API Key**：可留空（代理自动补上本机 `auth.json` 中的 key）
+   - **Base URL**: `http://127.0.0.1:9355/zen/go/v1`
+   - **Model ID**: `proxy-<real-model-name>`, e.g. `proxy-glm-5.3-flash`
+   - **API Key**: may be left empty (the proxy fills in the local `auth.json` key)
 
-3. 正常对话即可；面板下方可查看今日 Token 统计与缓存命中率
-4. 需要强制开启新会话时使用托盘菜单 `New Session`
+3. Chat as usual; the panel shows today's token statistics and cache hit rate
+4. Use the tray menu `New Session` to force a fresh session when needed
 
-> 代理仅监听本机回环地址 `127.0.0.1`，不会暴露到局域网。日志与统计不记录 prompt 内容与 API Key 明文。
+> The proxy only listens on loopback `127.0.0.1` and is never exposed to the LAN. Logs and statistics never contain prompt content or API keys in plaintext.
 
-## 项目结构
+## Project Structure
 
 ```text
 gomonitor/
-  docs/                     # 设计文档（需求、架构、代理方案）
-  design/                   # 托盘图标设计资源与预览页
+  docs/                     # design documents (requirements, architecture, proxy design)
+  design/                   # tray icon design assets and preview page
   src/GoMonitor/
-    Models/                 # 用量、设置、代理数据模型
-    Services/               # 用量轮询、托盘绘制、代理、会话、统计、模型目录
-    Views/                  # 用量面板与设置窗口
-  tests/GoMonitor.Tests/    # xUnit 单元测试（解析、阈值、会话、代理端到端等）
+    Models/                 # usage, settings and proxy data models
+    Services/               # usage polling, tray drawing, proxy, sessions, stats, model catalog
+    Views/                  # usage panel and settings window
+  tests/GoMonitor.Tests/    # xUnit unit tests (parsing, thresholds, sessions, proxy end-to-end, etc.)
 ```
 
-## 开发
+## Development
 
 ```powershell
-dotnet build GoMonitor.sln   # 构建
-dotnet test GoMonitor.sln    # 运行全部单元测试（xUnit）
+dotnet build GoMonitor.sln   # build
+dotnet test GoMonitor.sln    # run all unit tests (xUnit)
 ```
 
-主要模块：
+Key modules:
 
-| 模块 | 职责 |
+| Module | Responsibility |
 | --- | --- |
-| `OpenCodeUsageService` | 轮询官方用量接口，输出 `UsageSnapshot` |
-| `TrayIconController` | 运行时绘制托盘图标、tooltip、托盘菜单 |
-| `OpenCodeProxyService` | HttpListener 代理：头注入、模型重写、流式透传、TLS 重试 |
-| `SessionRegistry` | 会话哈希 → ID 映射、空闲过期、手动重置 |
-| `ProxyUsageRecorder` | usage 解析（JSON / SSE）、jsonl 落盘与聚合 |
-| `ModelCatalogService` | 官方模型列表拉取与新增 / 下架 diff |
+| `OpenCodeUsageService` | Polls the official usage endpoint, outputs `UsageSnapshot` |
+| `TrayIconController` | Runtime tray icon drawing, tooltip, tray menu |
+| `OpenCodeProxyService` | HttpListener proxy: header injection, model rewriting, streaming, TLS retry |
+| `SessionRegistry` | Session hash → ID mapping, idle expiry, manual reset |
+| `ProxyUsageRecorder` | usage parsing (JSON / SSE), jsonl persistence and aggregation |
+| `ModelCatalogService` | Fetches the official model list and diffs added / removed models |
 
-## 相关文档
+## Documentation
 
-- [00-需求与设计方案](docs/00-需求与设计方案.md)
-- [01-技术栈与架构](docs/01-技术栈与架构.md)
-- [02-opencode-proxy设计方案](docs/02-opencode-proxy设计方案.md)
+- [00-Requirements & Design](docs/00-需求与设计方案.md)
+- [01-Tech Stack & Architecture](docs/01-技术栈与架构.md)
+- [02-OpenCode Proxy Design](docs/02-opencode-proxy设计方案.md)
 
-## 致谢
+## Acknowledgements
 
-- [opencode-go-proxy-for-trae](https://github.com/LIMTCYT/opencode-go-proxy-for-trae) —— 会话头注入方案参考
-- [Trae 论坛：OpenCode 会话头讨论](https://forum.trae.cn/t/topic/180164) —— 验证了头注入可保留提示词缓存
+- [opencode-go-proxy-for-trae](https://github.com/LIMTCYT/opencode-go-proxy-for-trae) — reference for the header-injection approach
+- [Trae forum: OpenCode session header discussion](https://forum.trae.cn/t/topic/180164) — verified that header injection preserves prompt caching
